@@ -1,0 +1,447 @@
+/* ── GOOGLE FONTS ── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap');
+
+/* ── VARIABLES ── */
+:root {
+  --green:        #2d6a4f;
+  --green-light:  #40916c;
+  --green-pale:   #d8f3dc;
+  --white:        #ffffff;
+  --off-white:    #f8faf8;
+  --text-dark:    #1a2e1e;
+  --text-mid:     #4a6355;
+  --text-light:   #8aab96;
+  --blue-link:    #1a6fb5;
+  --shadow-sm:    0 2px 8px rgba(45,106,79,.10);
+  --shadow-md:    0 8px 32px rgba(45,106,79,.16);
+  --shadow-lg:    0 24px 64px rgba(45,106,79,.22);
+  --radius:       14px;
+  --nav-h:        68px;
+}
+
+/* ── RESET & BASE ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--white);
+  color: var(--text-dark);
+  min-height: 100vh;
+}
+
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ── NAVBAR ── */
+.navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 48px;
+
+  /* default: transparent so hero shows through */
+  background: transparent;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* scrolled state: green square covering the top strip */
+.navbar--scrolled {
+  background: var(--green);
+  box-shadow: var(--shadow-md);
+}
+
+.navbar-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: var(--white);
+  /* visible even before scroll because hero is dark-ish */
+  text-shadow: 0 1px 4px rgba(0,0,0,.25);
+  user-select: none;
+}
+
+/* on unscrolled light hero, make logo dark green */
+.navbar:not(.navbar--scrolled) .navbar-logo {
+  color: var(--green);
+  text-shadow: none;
+}
+
+.navbar-login-btn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  padding: 8px 24px;
+  border-radius: 999px;
+  border: 2px solid var(--white);
+  background: transparent;
+  color: var(--white);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.navbar:not(.navbar--scrolled) .navbar-login-btn {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.navbar--scrolled .navbar-login-btn:hover {
+  background: var(--white);
+  color: var(--green);
+}
+
+.navbar:not(.navbar--scrolled) .navbar-login-btn:hover {
+  background: var(--green);
+  color: var(--white);
+}
+
+/* ── HERO ── */
+.hero {
+  min-height: 100vh;
+  padding: calc(var(--nav-h) + 64px) 48px 80px;
+  display: flex;
+  align-items: center;
+  gap: 64px;
+  background: var(--white);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -120px; right: -120px;
+  width: 520px; height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--green-pale) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-content {
+  flex: 1;
+  max-width: 560px;
+}
+
+.hero-eyebrow {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--green-light);
+  margin-bottom: 18px;
+}
+
+.hero-heading {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.4rem, 5vw, 3.8rem);
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--text-dark);
+  margin-bottom: 24px;
+}
+
+.hero-body {
+  font-size: 1.05rem;
+  line-height: 1.7;
+  color: var(--text-mid);
+  margin-bottom: 36px;
+  max-width: 460px;
+}
+
+.hero-cta-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* ── DECORATION CARDS ── */
+.hero-decoration {
+  flex: 1;
+  position: relative;
+  min-height: 420px;
+  display: none;
+}
+
+@media (min-width: 900px) { .hero-decoration { display: block; } }
+
+.deco-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px dashed var(--green-pale);
+}
+.ring-1 { width: 340px; height: 340px; top: 20px; left: 20px; }
+.ring-2 { width: 220px; height: 220px; top: 80px; left: 80px; }
+
+.deco-card {
+  position: absolute;
+  background: var(--white);
+  border: 1px solid var(--green-pale);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-md);
+  min-width: 180px;
+}
+.deco-card p  { font-size: 0.95rem; font-weight: 500; margin: 4px 0; color: var(--text-dark); }
+.deco-card small { font-size: 0.78rem; color: var(--text-light); }
+
+.deco-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--green-light);
+}
+
+.card-1 { top: 30px;  left: 40px;  transform: rotate(-4deg); }
+.card-2 { top: 160px; left: 200px; transform: rotate(3deg); }
+.card-3 { top: 290px; left: 60px;  transform: rotate(-2deg); }
+
+/* ── BUTTONS ── */
+.btn-primary {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 12px 32px;
+  border-radius: 999px;
+  border: none;
+  background: var(--green);
+  color: var(--white);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+.btn-primary:hover:not(:disabled) { background: var(--green-light); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.55; cursor: default; }
+
+.btn-ghost {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 12px 32px;
+  border-radius: 999px;
+  border: 2px solid var(--green);
+  background: transparent;
+  color: var(--green);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-ghost:hover:not(:disabled) { background: var(--green-pale); }
+.btn-ghost:disabled { opacity: 0.55; cursor: default; }
+
+/* ── FEATURES ── */
+.features {
+  padding: 96px 48px;
+  background: var(--off-white);
+  text-align: center;
+}
+
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: var(--text-dark);
+  margin-bottom: 56px;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 32px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.feature-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 40px 28px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.feature-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); }
+.feature-icon { font-size: 2rem; display: block; margin-bottom: 16px; }
+.feature-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 10px; color: var(--text-dark); }
+.feature-card p  { font-size: 0.92rem; line-height: 1.6; color: var(--text-mid); }
+
+/* ── FOOTER ── */
+.footer {
+  margin-top: auto;
+  padding: 32px 48px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-light);
+  border-top: 1px solid var(--green-pale);
+}
+
+/* ── LOGIN MODAL ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(26, 46, 30, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-box {
+  background: var(--white);
+  border-radius: 20px;
+  padding: 48px 44px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  animation: modalIn 0.25s ease;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px; right: 18px;
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: var(--text-light);
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+.modal-close:hover { color: var(--text-dark); background: var(--green-pale); }
+
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: var(--text-dark);
+  margin-bottom: 6px;
+}
+
+.modal-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-mid);
+  margin-bottom: 32px;
+}
+
+.modal-box .btn-primary {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.modal-footer-text {
+  margin-top: 20px;
+  font-size: 0.85rem;
+  color: var(--text-mid);
+  text-align: center;
+}
+
+.register-link {
+  color: var(--blue-link);
+  cursor: pointer;
+  font-weight: 500;
+}
+.register-link:hover { text-decoration: underline; }
+
+/* ── INPUT GROUP ── */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.input-group label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--text-mid);
+}
+
+.input-group input {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.97rem;
+  padding: 11px 16px;
+  border: 1.5px solid #d0e4d8;
+  border-radius: 10px;
+  outline: none;
+  background: var(--off-white);
+  color: var(--text-dark);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input-group input:focus {
+  border-color: var(--green-light);
+  box-shadow: 0 0 0 3px rgba(64,145,108,.15);
+  background: var(--white);
+}
+.input-group input::placeholder { color: var(--text-light); }
+
+/* ── REGISTER PAGE ── */
+.register-page {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  background: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.register-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 56px 44px;
+  background: var(--white);
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+  animation: modalIn 0.25s ease;
+}
+
+.back-btn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 500;
+  background: none;
+  border: none;
+  color: var(--green-light);
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 28px;
+  transition: color 0.15s;
+}
+.back-btn:hover { color: var(--green); }
+
+.register-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: var(--text-dark);
+  margin-bottom: 6px;
+}
+
+.register-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-mid);
+  margin-bottom: 32px;
+}
+
+.register-card .btn-primary {
+  width: 100%;
+  margin-top: 8px;
+}
