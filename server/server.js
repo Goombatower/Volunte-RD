@@ -8,7 +8,7 @@ app.use(express.json());
 app.use(cors({ origin: "http://localhost:5173" }));
 
 const pool = new Pool({
-  connectionString: "postgresql://neondb_owner:npg_v6P0eOzqgYXk@ep-billowing-cell-ao5loys6.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
+  connectionString: "postgresql://neondb_owner:npg_87uAlETDYIkm@ep-billowing-cell-ao5loys6-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
   ssl: { rejectUnauthorized: false }
 });
 
