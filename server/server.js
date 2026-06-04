@@ -5,7 +5,12 @@ const { Pool } = require("pg");
 
 const app = express();
 app.use(express.json());
-app.use(cors({ origin: "https://volunte-rd.netlify.app" }));
+app.use(cors({
+  origin: "https://volunte-rd.netlify.app",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type"]
+}));
+app.options("*", cors());
 
 const pool = new Pool({
   connectionString: "postgresql://neondb_owner:npg_87uAlETDYIkm@ep-billowing-cell-ao5loys6-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
