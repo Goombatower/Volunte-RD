@@ -23,19 +23,21 @@ async function initDB() {
       id         SERIAL PRIMARY KEY,
       username   VARCHAR(64) UNIQUE NOT NULL,
       password   TEXT        NOT NULL,
+      organizer  BOOLEAN     FALSE,
+      admin      BOOLEAN     FALSE,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS postings (
-      posting_id          SERIAL PRIMARY KEY,
-      posting_title       VARCHAR(100) NOT NULL,
-      posting_tags        TEXT[]       NOT NULL DEFAULT '{}',
-      posting_start_date  DATE         NOT NULL,
-      posting_description VARCHAR(200) NOT NULL,
-      posting_comments    INTEGER,
-      author_username     VARCHAR(64)  NOT NULL,
-      created_at          TIMESTAMPTZ  DEFAULT NOW()
+      id          SERIAL PRIMARY KEY,
+      title       VARCHAR(100) NOT NULL,
+      tags        TEXT[]       NOT NULL DEFAULT '{}',
+      start_date  DATE         NOT NULL,
+      description VARCHAR(200) NOT NULL,
+      comments    INTEGER,
+      author      VARCHAR(64)  NOT NULL,
+      created_at  TIMESTAMPTZ  DEFAULT NOW()
     )
   `);
   console.log("Database ready.");
@@ -78,9 +80,9 @@ app.get("/api/postings", async (req, res) => {
     const term = `%${search.trim().toLowerCase()}%`;
     const result = await pool.query(
       `SELECT * FROM postings
-       WHERE LOWER(posting_title) LIKE $1
+       WHERE LOWER(title) LIKE $1
           OR EXISTS (
-            SELECT 1 FROM unnest(posting_tags) t WHERE LOWER(t) LIKE $1
+            SELECT 1 FROM unnest(tags) t WHERE LOWER(t) LIKE $1
           )
        ORDER BY created_at DESC`,
       [term]
@@ -94,15 +96,15 @@ app.get("/api/postings", async (req, res) => {
 });
 
 app.post("/api/postings", async (req, res) => {
-  const { posting_title, posting_tags, posting_start_date, posting_description, author_username } = req.body;
+  const { title, tags, start_date, description, author_username } = req.body;
 
-  if (!posting_title || !posting_start_date || !posting_description || !author_username)
+  if (!title || !start_date || !description || !author_username)
     return res.status(400).json({ error: "All fields are required." });
 
   const result = await pool.query(
-    `INSERT INTO postings (posting_title, posting_tags, posting_start_date, posting_description, author_username)
+    `INSERT INTO postings (title, tags, start_date, description, author_username)
      VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [posting_title, posting_tags || [], posting_start_date, posting_description, author_username]
+    [title, tags || [], start_date, description, author_username]
   );
   return res.status(201).json(result.rows[0]);
 });

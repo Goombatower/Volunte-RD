@@ -9,7 +9,7 @@ function LoginModal({ onClose, onGoRegister, onLoginSuccess }) {
   const [password, setPassword] = useState("");
   const [error,    setError]    = useState("");
   const [loading,  setLoading]  = useState(false);
- 
+
   async function handleLogin() {
     setError(""); setLoading(true);
     try {
@@ -138,11 +138,11 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
       const res  = await fetch(`${API}/postings`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          posting_title:       title,
-          posting_tags:        tags,
-          posting_start_date:  startDate,
-          posting_description: description,
-          author_username:     currentUser,
+          title:       title,
+          tags:        tags,
+          start_date:  startDate,
+          description: description,
+          author:      currentUser,
         }),
       });
       const data = await res.json();
@@ -278,7 +278,7 @@ export default function App() {
         <span className="navbar-logo">Volunte-RD</span>
         {currentUser ? (
           <div className="navbar-user">
-            <span className="navbar-username">👤 {currentUser}</span>
+            <span className="navbar-username">{currentUser}</span>
             <button className="navbar-logout-btn" onClick={() => setCurrentUser(null)}>Log out</button>
           </div>
         ) : (
@@ -286,7 +286,6 @@ export default function App() {
         )}
       </header>
  
-      {/* ── MODALS ── */}
       {showLogin && (
         <LoginModal onClose={() => setShowLogin(false)}
           onGoRegister={() => setShowRegister(true)}
@@ -299,10 +298,8 @@ export default function App() {
           onPostCreated={(p) => setPosts((prev) => [p, ...prev])} />
       )}
  
-      {/* ── MAIN ── */}
       <main className="feed-main">
  
-        {/* Search bar row */}
         <div className="feed-toolbar">
           <div className="search-bar">
             <span className="search-icon">🔍</span>
@@ -316,7 +313,7 @@ export default function App() {
           </div>
           {currentUser && (
             <button className="btn-new-post" onClick={() => setShowNewPost(true)}>
-              + New Posting
+              + New Opportunity
             </button>
           )}
         </div>
@@ -330,7 +327,7 @@ export default function App() {
           </p>
         ) : (
           <div className="feed-list">
-            {posts.map((p) => <PostCard key={p.posting_id} post={p} />)}
+            {posts.map((p) => <PostCard key={p.id} post={p} />)}
           </div>
         )}
       </main>
