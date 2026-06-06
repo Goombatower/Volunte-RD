@@ -23,8 +23,8 @@ async function initDB() {
       id         SERIAL PRIMARY KEY,
       username   VARCHAR(64) UNIQUE NOT NULL,
       password   TEXT        NOT NULL,
-      organizer  BOOLEAN     FALSE,
-      admin      BOOLEAN     FALSE,
+      organizer  BOOLEAN     NOT NULL DEFAULT FALSE,
+      admin      BOOLEAN     NOT NULL DEFAULT FALSE,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
@@ -66,34 +66,42 @@ app.post("/api/login", async (req, res) => {
   if (result.rows.length === 0)
     return res.status(401).json({ error: "Invalid username or password." });
 
+  const user = result.rows[0]
   const match = await bcrypt.compare(password, result.rows[0].password);
   if (!match)
     return res.status(401).json({ error: "Invalid username or password." });
 
-  return res.json({ message: "Login successful.", userId: result.rows[0].id });
+  return res.json({ message: "Login successful.", 
+    userId:    user.id,
+    organizer: user.organizer,
+    admin:     user.admin,
+ });
 });
 
-app.get("/api/postings", async (req, res) => {
-  const { search } = req.query;
-  let rows;
-  if (search && search.trim()) {
-    const term = `%${search.trim().toLowerCase()}%`;
-    const result = await pool.query(
-      `SELECT * FROM postings
-       WHERE LOWER(title) LIKE $1
-          OR EXISTS (
-            SELECT 1 FROM unnest(tags) t WHERE LOWER(t) LIKE $1
-          )
-       ORDER BY created_at DESC`,
-      [term]
-    );
-    rows = result.rows;
-  } else {
-    const result = await pool.query("SELECT * FROM postings ORDER BY created_at DESC");
-    rows = result.rows;
-  }
-  return res.json(rows);
+app.post("/api/postings", async (req, res) => {
+  const { title, tags, start_date, description, author } = req.body;
+ 
+  if (!title || !start_date || !description || !author)
+    return res.status(400).json({ error: "All fields are required." });
+ 
+
+  const userResult = await pool.query(
+    "SELECT organizer FROM users WHERE username = $1",
+    [author]
+  );
+  if (userResult.rows.length === 0)
+    return res.status(401).json({ error: "User not found." });
+  if (!userResult.rows[0].organizer)
+    return res.status(403).json({ error: "Only organizers can create postings." });
+ 
+  const result = await pool.query(
+    `INSERT INTO postings (title, tags, start_date, description, author)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [title, tags || [], start_date, description, author]
+  );
+  return res.status(201).json(result.rows[0]);
 });
+
 
 app.post("/api/postings", async (req, res) => {
   const { title, tags, start_date, description, author_username } = req.body;

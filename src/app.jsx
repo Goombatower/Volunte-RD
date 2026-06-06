@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import "./app.css";
- 
+
 const API = "https://volunte-rd-production.up.railway.app/api";
- 
 
 function LoginModal({ onClose, onGoRegister, onLoginSuccess }) {
   const [username, setUsername] = useState("");
@@ -19,11 +18,13 @@ function LoginModal({ onClose, onGoRegister, onLoginSuccess }) {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
-      onLoginSuccess(username); onClose();
+      // Pass back username + organizer flag
+      onLoginSuccess(username, data.organizer);
+      onClose();
     } catch { setError("Could not reach the server."); }
     finally   { setLoading(false); }
   }
- 
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box" onClick={(e) => e.stopPropagation()}>
@@ -51,8 +52,7 @@ function LoginModal({ onClose, onGoRegister, onLoginSuccess }) {
     </div>
   );
 }
- 
-// ── REGISTER PAGE ─────────────────────────────────────────
+
 function RegisterPage({ onBack }) {
   const [username,  setUsername]  = useState("");
   const [password,  setPassword]  = useState("");
@@ -60,7 +60,7 @@ function RegisterPage({ onBack }) {
   const [error,     setError]     = useState("");
   const [success,   setSuccess]   = useState("");
   const [loading,   setLoading]   = useState(false);
- 
+
   async function handleRegister() {
     setError(""); setSuccess("");
     if (password !== password2) { setError("Passwords do not match."); return; }
@@ -78,7 +78,7 @@ function RegisterPage({ onBack }) {
     } catch { setError("Could not reach the server."); }
     finally   { setLoading(false); }
   }
- 
+
   return (
     <div className="register-page">
       <div className="register-card">
@@ -111,8 +111,7 @@ function RegisterPage({ onBack }) {
     </div>
   );
 }
- 
-// ── NEW POST MODAL ────────────────────────────────────────
+
 function NewPostModal({ onClose, currentUser, onPostCreated }) {
   const [title,       setTitle]       = useState("");
   const [description, setDescription] = useState("");
@@ -121,29 +120,23 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
   const [tags,        setTags]        = useState([]);
   const [error,       setError]       = useState("");
   const [loading,     setLoading]     = useState(false);
- 
+
   function addTag() {
     const t = tagInput.trim();
     if (t && !tags.includes(t)) setTags([...tags, t]);
     setTagInput("");
   }
   function removeTag(t) { setTags(tags.filter((x) => x !== t)); }
- 
+
   async function handleSubmit() {
     setError("");
     if (!title || !description || !startDate) { setError("All fields are required."); return; }
     if (description.length > 200) { setError("Description must be 200 characters or fewer."); return; }
     setLoading(true);
     try {
-      const res  = await fetch(`${API}/postings`, {
+      const res = await fetch(`${API}/postings`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title:       title,
-          tags:        tags,
-          start_date:  startDate,
-          description: description,
-          author:      currentUser,
-        }),
+        body: JSON.stringify({ title, tags, start_date: startDate, description, author: currentUser }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
@@ -152,31 +145,27 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
     } catch { setError("Could not reach the server."); }
     finally   { setLoading(false); }
   }
- 
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-box modal-box--wide" onClick={(e) => e.stopPropagation()}>
         <button className="modal-close" onClick={onClose}>✕</button>
         <h2 className="modal-title">Create a Posting</h2>
         {error && <p className="form-error">{error}</p>}
- 
         <div className="input-group">
           <label>Title</label>
           <input type="text" placeholder="e.g. Beach Clean-Up Drive" maxLength={100}
             value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
- 
         <div className="input-group">
           <label>Description <span className="char-count">({description.length}/200)</span></label>
           <textarea placeholder="Describe the opportunity…" maxLength={200} rows={3}
             value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
- 
         <div className="input-group">
           <label>Start Date</label>
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </div>
- 
         <div className="input-group">
           <label>Tags</label>
           <div className="tag-input-row">
@@ -195,7 +184,6 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
             </div>
           )}
         </div>
- 
         <button className="btn-primary" onClick={handleSubmit} disabled={loading}>
           {loading ? "Posting…" : "Post Opportunity"}
         </button>
@@ -203,55 +191,51 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
     </div>
   );
 }
- 
-// ── POST CARD ─────────────────────────────────────────────
+
 function PostCard({ post }) {
-  const date = new Date(post.posting_start_date).toLocaleDateString("en-CA", {
+  const date = new Date(post.start_date).toLocaleDateString("en-CA", {
     year: "numeric", month: "long", day: "numeric",
   });
- 
+
   return (
     <div className="post-card">
       <div className="post-card__header">
         <div>
-          <h2 className="post-card__title">{post.posting_title}</h2>
-          <p className="post-card__meta">Posted by <strong>{post.author_username}</strong></p>
+          <h2 className="post-card__title">{post.title}</h2>
+          <p className="post-card__meta">Posted by <strong>{post.author}</strong></p>
         </div>
         <div className="post-card__date">
           <span className="post-card__date-label">Starts</span>
           <span className="post-card__date-value">{date}</span>
         </div>
       </div>
- 
-      {post.posting_tags.length > 0 && (
+      {post.tags && post.tags.length > 0 && (
         <div className="tag-list tag-list--card">
-          {post.posting_tags.map((t) => <span key={t} className="tag">{t}</span>)}
+          {post.tags.map((t) => <span key={t} className="tag">{t}</span>)}
         </div>
       )}
- 
-      <p className="post-card__desc">{post.posting_description}</p>
+      <p className="post-card__desc">{post.description}</p>
     </div>
   );
 }
- 
-// ── MAIN APP ──────────────────────────────────────────────
+
 export default function App() {
   const [currentUser,  setCurrentUser]  = useState(null);
+  const [isOrganizer,  setIsOrganizer]  = useState(false);
   const [scrolled,     setScrolled]     = useState(false);
   const [showLogin,    setShowLogin]    = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const [showNewPost,  setShowNewPost]  = useState(false);
- 
   const [posts,        setPosts]        = useState([]);
   const [search,       setSearch]       = useState("");
   const [loadingPosts, setLoadingPosts] = useState(false);
- 
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
- 
+
   const fetchPosts = useCallback(async (q = "") => {
     setLoadingPosts(true);
     try {
@@ -262,34 +246,45 @@ export default function App() {
     } catch { /* silent */ }
     finally { setLoadingPosts(false); }
   }, []);
- 
+
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
- 
-  // Debounce search
+
   useEffect(() => {
     const t = setTimeout(() => fetchPosts(search), 300);
     return () => clearTimeout(t);
   }, [search, fetchPosts]);
- 
+
+  function handleLoginSuccess(username, organizer) {
+    setCurrentUser(username);
+    setIsOrganizer(organizer);
+  }
+
+  function handleLogout() {
+    setCurrentUser(null);
+    setIsOrganizer(false);
+  }
+
   return (
     <div className="app">
-      {/* ── NAVBAR ── */}
       <header className={`navbar ${scrolled ? "navbar--scrolled" : ""}`}>
         <span className="navbar-logo">Volunte-RD</span>
         {currentUser ? (
           <div className="navbar-user">
-            <span className="navbar-username">{currentUser}</span>
-            <button className="navbar-logout-btn" onClick={() => setCurrentUser(null)}>Log out</button>
+            <span className="navbar-username">
+              {currentUser}
+              {isOrganizer && <span className="organizer-badge">Organizer</span>}
+            </span>
+            <button className="navbar-logout-btn" onClick={handleLogout}>Log out</button>
           </div>
         ) : (
           <button className="navbar-login-btn" onClick={() => setShowLogin(true)}>Log-in</button>
         )}
       </header>
- 
+
       {showLogin && (
         <LoginModal onClose={() => setShowLogin(false)}
           onGoRegister={() => setShowRegister(true)}
-          onLoginSuccess={(u) => setCurrentUser(u)} />
+          onLoginSuccess={handleLoginSuccess} />
       )}
       {showRegister && <RegisterPage onBack={() => setShowRegister(false)} />}
       {showNewPost && (
@@ -297,28 +292,22 @@ export default function App() {
           currentUser={currentUser}
           onPostCreated={(p) => setPosts((prev) => [p, ...prev])} />
       )}
- 
+
       <main className="feed-main">
- 
         <div className="feed-toolbar">
           <div className="search-bar">
             <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Search by title or tag…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <input type="text" placeholder="Search by title or tag…"
+              value={search} onChange={(e) => setSearch(e.target.value)} />
             {search && <button className="search-clear" onClick={() => setSearch("")}>✕</button>}
           </div>
-          {currentUser && (
+          {currentUser && isOrganizer && (
             <button className="btn-new-post" onClick={() => setShowNewPost(true)}>
               + New Opportunity
             </button>
           )}
         </div>
- 
-        {/* Post feed */}
+
         {loadingPosts ? (
           <p className="feed-status">Loading…</p>
         ) : posts.length === 0 ? (
@@ -334,4 +323,3 @@ export default function App() {
     </div>
   );
 }
- 
