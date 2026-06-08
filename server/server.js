@@ -44,7 +44,6 @@ async function initDB() {
   console.log("Database ready.");
 }
  
-// ── REGISTER ─────────────────────────────────────────────
 app.post("/api/register", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -64,7 +63,6 @@ app.post("/api/register", async (req, res) => {
   }
 });
  
-// ── LOGIN ─────────────────────────────────────────────────
 app.post("/api/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -95,7 +93,6 @@ app.post("/api/login", async (req, res) => {
   }
 });
  
-// ── GET POSTINGS ──────────────────────────────────────────
 app.get("/api/postings", async (req, res) => {
   try {
     const { search } = req.query;
@@ -120,8 +117,41 @@ app.get("/api/postings", async (req, res) => {
     return res.status(500).json({ error: "Server error: " + err.message });
   }
 });
+
+app.post("/api/postings/:id/join", async (req, res) => {
+  try {
+    const postingId = parseInt(req.params.id);
+    const { userId } = req.body;
  
-// ── CREATE POSTING ────────────────────────────────────────
+    if (!userId)
+      return res.status(400).json({ error: "userId is required." });
+ 
+    const postResult = await pool.query(
+      "SELECT helpers, max_helpers FROM postings WHERE id = $1",
+      [postingId]
+    );
+    if (postResult.rows.length === 0)
+      return res.status(404).json({ error: "Posting not found." });
+ 
+    const { helpers, max_helpers } = postResult.rows[0];
+ 
+    if (helpers.includes(userId))
+      return res.status(409).json({ error: "You have already joined this posting." });
+ 
+    if (max_helpers > 0 && helpers.length >= max_helpers)
+      return res.status(409).json({ error: "This posting is already full." });
+ 
+    const updated = await pool.query(
+      "UPDATE postings SET helpers = array_append(helpers, $1) WHERE id = $2 RETURNING *",
+      [userId, postingId]
+    );
+    return res.json(updated.rows[0]);
+  } catch (err) {
+    console.error("JOIN ERROR:", err);
+    return res.status(500).json({ error: "Server error: " + err.message });
+  }
+});
+ 
 app.post("/api/postings", async (req, res) => {
   try {
     const { title, tags, start_date, description, author } = req.body;
@@ -150,8 +180,6 @@ app.post("/api/postings", async (req, res) => {
   }
 });
  
-// ── TEST ROUTE ────────────────────────────────────────────
-// Visit /api/test in browser to confirm the server is live and DB is reachable
 app.get("/api/test", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW() as time, current_database() as db");
@@ -161,7 +189,6 @@ app.get("/api/test", async (req, res) => {
   }
 });
  
-// ── START ─────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
 initDB()
   .then(() => app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`)))

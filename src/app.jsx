@@ -18,8 +18,7 @@ function LoginModal({ onClose, onGoRegister, onLoginSuccess }) {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
-      // Pass back username + organizer flag
-      onLoginSuccess(username, data.organizer);
+      onLoginSuccess(username, data.userId, data.organizer, data.admin);
       onClose();
     } catch { setError("Could not reach the server."); }
     finally   { setLoading(false); }
@@ -118,6 +117,7 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
   const [startDate,   setStartDate]   = useState("");
   const [tagInput,    setTagInput]    = useState("");
   const [tags,        setTags]        = useState([]);
+  const [maxHelpers,  setMaxHelpers]  = useState(1);
   const [error,       setError]       = useState("");
   const [loading,     setLoading]     = useState(false);
 
@@ -132,11 +132,16 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
     setError("");
     if (!title || !description || !startDate) { setError("All fields are required."); return; }
     if (description.length > 200) { setError("Description must be 200 characters or fewer."); return; }
+    if (maxHelpers < 1) { setError("You need at least 1 helper spot."); return; }
     setLoading(true);
     try {
       const res = await fetch(`${API}/postings`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, tags, start_date: startDate, description, author: currentUser }),
+        body: JSON.stringify({
+          title, tags, start_date: startDate,
+          description, author: currentUser,
+          max_helpers: parseInt(maxHelpers),
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
@@ -167,6 +172,11 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </div>
         <div className="input-group">
+          <label>Helpers Needed</label>
+          <input type="number" min={1} max={999} placeholder="e.g. 10"
+            value={maxHelpers} onChange={(e) => setMaxHelpers(e.target.value)} />
+        </div>
+        <div className="input-group">
           <label>Tags</label>
           <div className="tag-input-row">
             <input type="text" placeholder="e.g. Environment" value={tagInput}
@@ -192,10 +202,34 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
   );
 }
 
-function PostCard({ post }) {
+function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined }) {
+  const [joining,   setJoining]   = useState(false);
+  const [joinError, setJoinError] = useState("");
+
   const date = new Date(post.start_date).toLocaleDateString("en-CA", {
     year: "numeric", month: "long", day: "numeric",
   });
+
+  const helperCount = post.helpers ? post.helpers.length : 0;
+  const maxHelpers  = post.max_helpers || 0;
+  const isFull      = maxHelpers > 0 && helperCount >= maxHelpers;
+  const hasJoined   = currentUserId && post.helpers && post.helpers.includes(currentUserId);
+
+  const canJoin = currentUserId && !isOrganizer && !isAdmin;
+
+  async function handleJoin() {
+    setJoinError(""); setJoining(true);
+    try {
+      const res  = await fetch(`${API}/postings/${post.id}/join`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: currentUserId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setJoinError(data.error); return; }
+      onJoined(data); 
+    } catch { setJoinError("Could not reach the server."); }
+    finally   { setJoining(false); }
+  }
 
   return (
     <div className="post-card">
@@ -209,19 +243,46 @@ function PostCard({ post }) {
           <span className="post-card__date-value">{date}</span>
         </div>
       </div>
+
       {post.tags && post.tags.length > 0 && (
         <div className="tag-list tag-list--card">
           {post.tags.map((t) => <span key={t} className="tag">{t}</span>)}
         </div>
       )}
+
       <p className="post-card__desc">{post.description}</p>
+
+      <div className="post-card__footer">
+        <span className={`helper-pill ${isFull ? "helper-pill--full" : ""}`}>
+          👥 {helperCount} / {maxHelpers} helpers
+        </span>
+
+        {canJoin && (
+          <div className="join-area">
+            {joinError && <span className="join-error">{joinError}</span>}
+            {hasJoined ? (
+              <span className="joined-badge">✓ Joined</span>
+            ) : (
+              <button
+                className={`btn-join ${isFull ? "btn-join--disabled" : ""}`}
+                onClick={handleJoin}
+                disabled={joining || isFull}
+              >
+                {joining ? "Joining…" : isFull ? "Full" : "Join as Helper"}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function App() {
   const [currentUser,  setCurrentUser]  = useState(null);
+  const [currentUserId,setCurrentUserId]= useState(null);
   const [isOrganizer,  setIsOrganizer]  = useState(false);
+  const [isAdmin,      setIsAdmin]      = useState(false);
   const [scrolled,     setScrolled]     = useState(false);
   const [showLogin,    setShowLogin]    = useState(false);
   const [showRegister, setShowRegister] = useState(false);
@@ -248,20 +309,27 @@ export default function App() {
   }, []);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
-
   useEffect(() => {
     const t = setTimeout(() => fetchPosts(search), 300);
     return () => clearTimeout(t);
   }, [search, fetchPosts]);
 
-  function handleLoginSuccess(username, organizer) {
+  function handleLoginSuccess(username, userId, organizer, admin) {
     setCurrentUser(username);
+    setCurrentUserId(userId);
     setIsOrganizer(organizer);
+    setIsAdmin(admin);
   }
 
   function handleLogout() {
     setCurrentUser(null);
+    setCurrentUserId(null);
     setIsOrganizer(false);
+    setIsAdmin(false);
+  }
+
+  function handlePostJoined(updatedPost) {
+    setPosts((prev) => prev.map((p) => p.id === updatedPost.id ? updatedPost : p));
   }
 
   return (
@@ -273,6 +341,7 @@ export default function App() {
             <span className="navbar-username">
               {currentUser}
               {isOrganizer && <span className="organizer-badge">Organizer</span>}
+              {isAdmin      && <span className="organizer-badge admin-badge">Admin</span>}
             </span>
             <button className="navbar-logout-btn" onClick={handleLogout}>Log out</button>
           </div>
@@ -316,7 +385,16 @@ export default function App() {
           </p>
         ) : (
           <div className="feed-list">
-            {posts.map((p) => <PostCard key={p.id} post={p} />)}
+            {posts.map((p) => (
+              <PostCard
+                key={p.id}
+                post={p}
+                currentUserId={currentUserId}
+                isOrganizer={isOrganizer}
+                isAdmin={isAdmin}
+                onJoined={handlePostJoined}
+              />
+            ))}
           </div>
         )}
       </main>
