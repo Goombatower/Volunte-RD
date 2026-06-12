@@ -1,7 +1,6 @@
-/* ── GOOGLE FONTS ── */
+
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500&display=swap');
 
-/* ── VARIABLES ── */
 :root {
   --green:        #2d6a4f;
   --green-light:  #40916c;
@@ -19,7 +18,6 @@
   --nav-h:        68px;
 }
 
-/* ── RESET & BASE ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { scroll-behavior: smooth; }
@@ -33,7 +31,6 @@ body {
 
 .app { display: flex; flex-direction: column; min-height: 100vh; }
 
-/* ── NAVBAR ── */
 .navbar {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -44,12 +41,10 @@ body {
   justify-content: space-between;
   padding: 0 48px;
 
-  /* default: transparent so hero shows through */
   background: transparent;
   transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* scrolled state: green square covering the top strip */
 .navbar--scrolled {
   background: var(--green);
   box-shadow: var(--shadow-md);
@@ -61,12 +56,10 @@ body {
   font-weight: 900;
   letter-spacing: -0.5px;
   color: var(--white);
-  /* visible even before scroll because hero is dark-ish */
   text-shadow: 0 1px 4px rgba(0,0,0,.25);
   user-select: none;
 }
 
-/* on unscrolled light hero, make logo dark green */
 .navbar:not(.navbar--scrolled) .navbar-logo {
   color: var(--green);
   text-shadow: none;
@@ -161,7 +154,6 @@ body {
   flex-wrap: wrap;
 }
 
-/* ── DECORATION CARDS ── */
 .hero-decoration {
   flex: 1;
   position: relative;
@@ -203,7 +195,6 @@ body {
 .card-2 { top: 160px; left: 200px; transform: rotate(3deg); }
 .card-3 { top: 290px; left: 60px;  transform: rotate(-2deg); }
 
-/* ── BUTTONS ── */
 .btn-primary {
   font-family: 'DM Sans', sans-serif;
   font-size: 0.95rem;
@@ -234,7 +225,6 @@ body {
 .btn-ghost:hover:not(:disabled) { background: var(--green-pale); }
 .btn-ghost:disabled { opacity: 0.55; cursor: default; }
 
-/* ── FEATURES ── */
 .features {
   padding: 96px 48px;
   background: var(--off-white);

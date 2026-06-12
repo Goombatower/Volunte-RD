@@ -37,7 +37,11 @@ async function initDB() {
       start_date  DATE         NOT NULL,
       description VARCHAR(200) NOT NULL,
       comments    INTEGER,
-      author      VARCHAR(64)  NOT NULL,
+      author      INTEGER      NOT NULL,
+      author_id   INTEGER      REFERENCES users(id),
+      helpers     INTEGER[]    NOT NULL DEFAULT '{}',
+      max_helpers INTEGER      NOT NULL DEFAULT 0,
+
       created_at  TIMESTAMPTZ  DEFAULT NOW()
     )
   `);
@@ -97,18 +101,23 @@ app.get("/api/postings", async (req, res) => {
   try {
     const { search } = req.query;
     let rows;
+    const baseQuery = `
+      SELECT p.*, u.username AS author_username
+      FROM postings p
+      LEFT JOIN users u ON u.id = p.author_id
+    `;
     if (search && search.trim()) {
       const term = `%${search.trim().toLowerCase()}%`;
       const result = await pool.query(
-        `SELECT * FROM postings
-         WHERE LOWER(title) LIKE $1
-            OR EXISTS (SELECT 1 FROM unnest(tags) t WHERE LOWER(t) LIKE $1)
-         ORDER BY created_at DESC`,
+        baseQuery + `
+        WHERE LOWER(p.title) LIKE $1
+           OR EXISTS (SELECT 1 FROM unnest(p.tags) t WHERE LOWER(t) LIKE $1)
+        ORDER BY p.created_at DESC`,
         [term]
       );
       rows = result.rows;
     } else {
-      const result = await pool.query("SELECT * FROM postings ORDER BY created_at DESC");
+      const result = await pool.query(baseQuery + " ORDER BY p.created_at DESC");
       rows = result.rows;
     }
     return res.json(rows);
@@ -118,39 +127,65 @@ app.get("/api/postings", async (req, res) => {
   }
 });
 
-app.post("/api/postings/:id/join", async (req, res) => {
+
+app.delete("/api/postings/:id/delete", async (req, res) => {
   try {
     const postingId = parseInt(req.params.id);
     const { userId } = req.body;
- 
-    if (!userId)
+  
+  if (!userId)
       return res.status(400).json({ error: "userId is required." });
- 
-    const postResult = await pool.query(
-      "SELECT helpers, max_helpers FROM postings WHERE id = $1",
-      [postingId]
+  
+  const postResult = await pool.query(
+      "SELECT author_id FROM postings WHERE id = $1", [postingId]
     );
     if (postResult.rows.length === 0)
       return res.status(404).json({ error: "Posting not found." });
  
-    const { helpers, max_helpers } = postResult.rows[0];
+  const authorId = postResult.rows[0].author_id;
+
+  if (authorId !== userId && !isAdmin)
+      return res.status(403).json({ error: "You do not have permission to delete this posting." });
  
-    if (helpers.includes(userId))
-      return res.status(409).json({ error: "You have already joined this posting." });
- 
-    if (max_helpers > 0 && helpers.length >= max_helpers)
-      return res.status(409).json({ error: "This posting is already full." });
- 
-    const updated = await pool.query(
-      "UPDATE postings SET helpers = array_append(helpers, $1) WHERE id = $2 RETURNING *",
-      [userId, postingId]
-    );
-    return res.json(updated.rows[0]);
+    await pool.query("DELETE FROM postings WHERE id = $1", [postingId]);
+    return res.json({ message: "Posting deleted." });
   } catch (err) {
-    console.error("JOIN ERROR:", err);
+    console.error("DELETE ERROR:", err);
+    return res.status(500).json({ error: "Server error: " + err.message });
+  }
+
+});
+    
+
+app.post("/api/postings", async (req, res) => {
+  try {
+    const { title, tags, start_date, description, author, max_helpers } = req.body;
+ 
+    if (!title || !start_date || !description || !author)
+      return res.status(400).json({ error: "All fields are required." });
+ 
+    const userResult = await pool.query(
+      "SELECT id, organizer FROM users WHERE username = $1", [author]
+    );
+    if (userResult.rows.length === 0)
+      return res.status(401).json({ error: "User not found." });
+    if (!userResult.rows[0].organizer)
+      return res.status(403).json({ error: "Only organizers can create postings." });
+ 
+    const authorId = userResult.rows[0].id;
+ 
+    const result = await pool.query(
+      `INSERT INTO postings (title, tags, start_date, description, author, author_id, max_helpers)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [title, tags || [], start_date, description, author, authorId, max_helpers || 0]
+    );
+    return res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error("CREATE POSTING ERROR:", err);
     return res.status(500).json({ error: "Server error: " + err.message });
   }
 });
+
  
 app.post("/api/postings", async (req, res) => {
   try {

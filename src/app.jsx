@@ -111,7 +111,7 @@ function RegisterPage({ onBack }) {
   );
 }
 
-function NewPostModal({ onClose, currentUser, onPostCreated }) {
+function NewPostModal({ onClose, currentUser, currentUserId, onPostCreated }) {
   const [title,       setTitle]       = useState("");
   const [description, setDescription] = useState("");
   const [startDate,   setStartDate]   = useState("");
@@ -139,7 +139,7 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title, tags, start_date: startDate,
-          description, author: currentUser,
+          description, author: currentUserId,
           max_helpers: parseInt(maxHelpers),
         }),
       });
@@ -169,7 +169,7 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
         </div>
         <div className="input-group">
           <label>Start Date</label>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </div>
         <div className="input-group">
           <label>Helpers Needed</label>
@@ -216,6 +216,8 @@ function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined }) {
   const hasJoined   = currentUserId && post.helpers && post.helpers.includes(currentUserId);
 
   const canJoin = currentUserId && !isOrganizer && !isAdmin;
+  const canDelete = currentUserId && (post.author_id === currentUserId || isAdmin);
+  const displayAuthor = post.author_username || post.author;
 
   async function handleJoin() {
     setJoinError(""); setJoining(true);
@@ -231,12 +233,27 @@ function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined }) {
     finally   { setJoining(false); }
   }
 
+  async function handleDelete() {
+    if (!window.confirm("Are you sure you want to delete this posting?")) return;
+    setDeleting(true);
+    try {
+      const res  = await fetch(`${API}/postings/${post.id}`, {
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: currentUserId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error); return; }
+      onDeleted(post.id);
+    } catch { alert("Could not reach the server."); }
+    finally   { setDeleting(false); }
+  }
+
   return (
     <div className="post-card">
       <div className="post-card__header">
         <div>
           <h2 className="post-card__title">{post.title}</h2>
-          <p className="post-card__meta">Posted by <strong>{post.author}</strong></p>
+          <p className="post-card__meta">Posted by <strong>{displayAuthor}</strong></p>
         </div>
         <div className="post-card__date">
           <span className="post-card__date-label">Starts</span>
@@ -273,6 +290,13 @@ function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined }) {
             )}
           </div>
         )}
+
+        {canDelete && (
+            <button className="btn-delete" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "🗑 Delete"}
+            </button>
+          )}
+
       </div>
     </div>
   );
