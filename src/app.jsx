@@ -111,7 +111,7 @@ function RegisterPage({ onBack }) {
   );
 }
 
-function NewPostModal({ onClose, currentUser, currentUserId, onPostCreated }) {
+function NewPostModal({ onClose, currentUser, onPostCreated }) {
   const [title,       setTitle]       = useState("");
   const [description, setDescription] = useState("");
   const [startDate,   setStartDate]   = useState("");
@@ -139,7 +139,7 @@ function NewPostModal({ onClose, currentUser, currentUserId, onPostCreated }) {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title, tags, start_date: startDate,
-          description, author: currentUserId,
+          description, author: currentUser,
           max_helpers: parseInt(maxHelpers),
         }),
       });
@@ -169,7 +169,7 @@ function NewPostModal({ onClose, currentUser, currentUserId, onPostCreated }) {
         </div>
         <div className="input-group">
           <label>Start Date</label>
-          <input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </div>
         <div className="input-group">
           <label>Helpers Needed</label>
@@ -202,9 +202,10 @@ function NewPostModal({ onClose, currentUser, currentUserId, onPostCreated }) {
   );
 }
 
-function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined }) {
+function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined, onDeleted }) {
   const [joining,   setJoining]   = useState(false);
   const [joinError, setJoinError] = useState("");
+  const [deleting,  setDeleting]  = useState(false);
 
   const date = new Date(post.start_date).toLocaleDateString("en-CA", {
     year: "numeric", month: "long", day: "numeric",
@@ -215,8 +216,9 @@ function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined }) {
   const isFull      = maxHelpers > 0 && helperCount >= maxHelpers;
   const hasJoined   = currentUserId && post.helpers && post.helpers.includes(currentUserId);
 
-  const canJoin = currentUserId && !isOrganizer && !isAdmin;
+  const canJoin   = currentUserId && !isOrganizer && !isAdmin;
   const canDelete = currentUserId && (post.author_id === currentUserId || isAdmin);
+
   const displayAuthor = post.author_username || post.author;
 
   async function handleJoin() {
@@ -228,7 +230,7 @@ function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined }) {
       });
       const data = await res.json();
       if (!res.ok) { setJoinError(data.error); return; }
-      onJoined(data); 
+      onJoined(data);
     } catch { setJoinError("Could not reach the server."); }
     finally   { setJoining(false); }
   }
@@ -237,7 +239,7 @@ function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined }) {
     if (!window.confirm("Are you sure you want to delete this posting?")) return;
     setDeleting(true);
     try {
-      const res  = await fetch(`${API}/postings/${post.id}`, {
+      const res = await fetch(`${API}/postings/${post.id}`, {
         method: "DELETE", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: currentUserId }),
       });
@@ -274,10 +276,11 @@ function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined }) {
           👥 {helperCount} / {maxHelpers} helpers
         </span>
 
-        {canJoin && (
-          <div className="join-area">
-            {joinError && <span className="join-error">{joinError}</span>}
-            {hasJoined ? (
+        <div className="join-area">
+          {joinError && <span className="join-error">{joinError}</span>}
+
+          {canJoin && (
+            hasJoined ? (
               <span className="joined-badge">✓ Joined</span>
             ) : (
               <button
@@ -287,33 +290,32 @@ function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined }) {
               >
                 {joining ? "Joining…" : isFull ? "Full" : "Join as Helper"}
               </button>
-            )}
-          </div>
-        )}
+            )
+          )}
 
-        {canDelete && (
+          {canDelete && (
             <button className="btn-delete" onClick={handleDelete} disabled={deleting}>
               {deleting ? "Deleting…" : "🗑 Delete"}
             </button>
           )}
-
+        </div>
       </div>
     </div>
   );
 }
 
 export default function App() {
-  const [currentUser,  setCurrentUser]  = useState(null);
-  const [currentUserId,setCurrentUserId]= useState(null);
-  const [isOrganizer,  setIsOrganizer]  = useState(false);
-  const [isAdmin,      setIsAdmin]      = useState(false);
-  const [scrolled,     setScrolled]     = useState(false);
-  const [showLogin,    setShowLogin]    = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
-  const [showNewPost,  setShowNewPost]  = useState(false);
-  const [posts,        setPosts]        = useState([]);
-  const [search,       setSearch]       = useState("");
-  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [currentUser,   setCurrentUser]   = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [isOrganizer,   setIsOrganizer]   = useState(false);
+  const [isAdmin,       setIsAdmin]       = useState(false);
+  const [scrolled,      setScrolled]      = useState(false);
+  const [showLogin,     setShowLogin]     = useState(false);
+  const [showRegister,  setShowRegister]  = useState(false);
+  const [showNewPost,   setShowNewPost]   = useState(false);
+  const [posts,         setPosts]         = useState([]);
+  const [search,        setSearch]        = useState("");
+  const [loadingPosts,  setLoadingPosts]  = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -327,8 +329,10 @@ export default function App() {
       const url = q ? `${API}/postings?search=${encodeURIComponent(q)}` : `${API}/postings`;
       const res = await fetch(url);
       const data = await res.json();
-      setPosts(data);
-    } catch { /* silent */ }
+      // Guard: only set posts if we got an array back
+      if (Array.isArray(data)) setPosts(data);
+      else console.error("Unexpected response from /api/postings:", data);
+    } catch (err) { console.error("fetchPosts error:", err); }
     finally { setLoadingPosts(false); }
   }, []);
 
@@ -354,6 +358,10 @@ export default function App() {
 
   function handlePostJoined(updatedPost) {
     setPosts((prev) => prev.map((p) => p.id === updatedPost.id ? updatedPost : p));
+  }
+
+  function handlePostDeleted(deletedId) {
+    setPosts((prev) => prev.filter((p) => p.id !== deletedId));
   }
 
   return (
@@ -417,6 +425,7 @@ export default function App() {
                 isOrganizer={isOrganizer}
                 isAdmin={isAdmin}
                 onJoined={handlePostJoined}
+                onDeleted={handlePostDeleted}
               />
             ))}
           </div>
