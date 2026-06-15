@@ -54,6 +54,7 @@ function LoginModal({ onClose, onGoRegister, onLoginSuccess }) {
 
 function RegisterPage({ onBack }) {
   const [username,  setUsername]  = useState("");
+  const [email,     setEmail]     = useState("");
   const [password,  setPassword]  = useState("");
   const [password2, setPassword2] = useState("");
   const [error,     setError]     = useState("");
@@ -62,18 +63,19 @@ function RegisterPage({ onBack }) {
 
   async function handleRegister() {
     setError(""); setSuccess("");
+    if (!email || !email.includes("@")) { setError("Please enter a valid email address."); return; }
     if (password !== password2) { setError("Passwords do not match."); return; }
     if (password.length < 6)    { setError("Password must be at least 6 characters."); return; }
     setLoading(true);
     try {
       const res  = await fetch(`${API}/register`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, email }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
       setSuccess("Account created! You can now log in.");
-      setUsername(""); setPassword(""); setPassword2("");
+      setUsername(""); setEmail(""); setPassword(""); setPassword2("");
     } catch { setError("Could not reach the server."); }
     finally   { setLoading(false); }
   }
@@ -88,6 +90,10 @@ function RegisterPage({ onBack }) {
         <div className="input-group">
           <label>Username</label>
           <input type="text" placeholder="James Doe" value={username} onChange={(e) => setUsername(e.target.value)} />
+        </div>
+        <div className="input-group">
+          <label>Email</label>
+          <input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div className="input-group">
           <label>Password</label>
@@ -168,8 +174,8 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
             value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
         <div className="input-group">
-          <label>Start Date</label>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <label>Start Date & Time</label>
+          <input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </div>
         <div className="input-group">
           <label>Helpers Needed</label>
@@ -202,6 +208,7 @@ function NewPostModal({ onClose, currentUser, onPostCreated }) {
   );
 }
 
+
 function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined, onDeleted }) {
   const [joining,   setJoining]   = useState(false);
   const [joinError, setJoinError] = useState("");
@@ -216,9 +223,12 @@ function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined, onDelet
   const isFull      = maxHelpers > 0 && helperCount >= maxHelpers;
   const hasJoined   = currentUserId && post.helpers && post.helpers.includes(currentUserId);
 
+  // Show join button only to logged-in non-organizer, non-admin users
   const canJoin   = currentUserId && !isOrganizer && !isAdmin;
+  // Show delete button to the post's author or admins
   const canDelete = currentUserId && (post.author_id === currentUserId || isAdmin);
 
+  // Use author_username from the JOIN if available, fall back to stored author string
   const displayAuthor = post.author_username || post.author;
 
   async function handleJoin() {
@@ -303,6 +313,7 @@ function PostCard({ post, currentUserId, isOrganizer, isAdmin, onJoined, onDelet
     </div>
   );
 }
+
 
 export default function App() {
   const [currentUser,   setCurrentUser]   = useState(null);

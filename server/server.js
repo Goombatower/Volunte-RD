@@ -2,6 +2,8 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const cors = require("cors");
 const { Pool } = require("pg");
+const { Resend } = require("resend");
+
 
 const app = express();
 app.use(express.json());
@@ -17,11 +19,14 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+const resend = new Resend(process.env.re_HFgR1eNQ_NmeFGcBQcKGeAPbQPaC8S2gB);
+
 async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id         SERIAL PRIMARY KEY,
       username   VARCHAR(64) UNIQUE NOT NULL,
+      email      VARCHAR(64) UNIQUE NOT NULL,
       password   TEXT        NOT NULL,
       organizer  BOOLEAN     NOT NULL DEFAULT FALSE,
       admin      BOOLEAN     NOT NULL DEFAULT FALSE,
@@ -40,6 +45,7 @@ async function initDB() {
       author_id   INTEGER      REFERENCES users(id),
       helpers     INTEGER[]    NOT NULL DEFAULT '{}',
       max_helpers INTEGER      NOT NULL DEFAULT 0,
+      email_sent  BOOLEAN      NOT NULL DEFAULT FALSE,
       created_at  TIMESTAMPTZ  DEFAULT NOW()
     )
   `);
@@ -48,6 +54,62 @@ async function initDB() {
   await pool.query(`ALTER TABLE postings ADD COLUMN IF NOT EXISTS author_id   INTEGER   REFERENCES users(id)`);
   console.log("Database ready.");
 }
+
+
+function startEventEmailCron() {
+  setInterval(async () => {
+    try {
+      const result = await pool.query(`
+        SELECT * FROM postings
+        WHERE start_date <= NOW() + INTERVAL '1 hour'
+          AND start_date >= NOW() + INTERVAL '1 hour' - INTERVAL '1 minute'
+          AND email_sent = FALSE
+          AND array_length(helpers, 1) > 0
+      `);
+ 
+      for (const posting of result.rows) {
+        const helperResult = await pool.query(
+          `SELECT email, username FROM users WHERE id = ANY($1) AND email IS NOT NULL`,
+          [posting.helpers]
+        );
+ 
+        if (helperResult.rows.length === 0) continue;
+ 
+        const emailList = helperResult.rows.map(u => u.email);
+ 
+        await resend.emails.send({
+          from: "Volunte-RD <noreply@yourdomain.com>",
+          to:   emailList,
+          subject: `Your volunteering event is starting soon: ${posting.title}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto;">
+              <h2 style="color: #2d6a4f;">Your event is starting soon!</h2>
+              <p>Hi there,</p>
+              <p>The volunteering opportunity you signed up for is starting in 1 hour:</p>
+              <div style="background: #d8f3dc; border-radius: 12px; padding: 20px; margin: 20px 0;">
+                <h3 style="margin: 0 0 8px; color: #1a2e1e;">${posting.title}</h3>
+                <p style="margin: 0; color: #4a6355;">${posting.description}</p>
+              </div>
+              <p>Good luck and thank you for volunteering!</p>
+              <p style="color: #8aab96; font-size: 0.85rem;">The Volunte-RD team</p>
+            </div>
+          `,
+        });
+ 
+        // Mark as sent so we don't send again
+        await pool.query(
+          "UPDATE postings SET email_sent = TRUE WHERE id = $1",
+          [posting.id]
+        );
+ 
+        console.log(`Email sent for posting ${posting.id} (${posting.title}) to ${emailList.length} helpers`);
+      }
+    } catch (err) {
+      console.error("CRON EMAIL ERROR:", err.message);
+    }
+  }, 60 * 1000); // runs every 60 seconds
+}
+
 
 app.post("/api/register", async (req, res) => {
   try {
